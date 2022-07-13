@@ -1,0 +1,326 @@
+--1.)
+COLUMN PatientFName FORMAT a15
+COLUMN PatientLName FORMAT a15
+COLUMN BillingType FORMAT a9
+COLUMN ApptTime FORMAT a10
+COLUMN ApptStatusCode FORMAT a17
+COLUMN PmtStatusCode FORMAT a17
+COLUMN ApptReasonCode FORMAT a15
+COLUMN BlockCode FORMAT a12
+COLUMN BlockCodeDesc FORMAT a17
+ALTER SESSION SET nls_date_format='DD-MON-YYYY hh24:mi:ss';
+
+
+
+--2.)
+SET LINESIZE 150
+SET PAGESIZE 150
+
+--3.) will be applied later
+
+--4.)
+ALTER TABLE APPOINTMENT_ldr RENAME COLUMN ApptDate TO ApptDateTime;
+
+ALTER TABLE APPOINTMENT_ldr
+DROP COLUMN Appttime;
+COMMIT;
+ 	
+UPDATE APPOINTMENT_ldr
+	SET ApptDateTime = '25-SEP-2021 09:00'
+WHERE ApptID= 101;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '25-SEP-2021 09:00:00'
+WHERE ApptID= 102;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '25-SEP-2021 10:00'
+WHERE ApptID= 103;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '25-SEP-2021 10:30'
+WHERE ApptID= 104;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '25-SEP-2021 10:30'
+WHERE ApptID= 105;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '25-SEP-2021 10:30'
+WHERE ApptID= 106;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '25-SEP-2021 11:30'
+WHERE ApptID= 107;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '25-SEP-2021 11:30'
+WHERE ApptID= 108;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '25-SEP-2021 2:00'
+WHERE ApptID= 109;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '26-SEP-2021 11:30'
+WHERE ApptID= 110;
+
+UPDATE APPOINTMENT_ldr
+SET ApptDateTime = '26-SEP-2021 8:30'
+WHERE ApptID= 111;
+
+ALTER TABLE APPOINTMENT_ldr
+DROP COLUMN ApptTime;
+COMMIT;
+--5.)
+
+ALTER TABLE BLOCK_ldr ADD (temp NUMBER);
+ALTER TABLE BLOCK_ldr DROP COLUMN BlockCodeMinutes;
+ALTER TABLE BLOCK_ldr RENAME COLUMN temp TO BlockCodeMinutes;
+COMMIT;
+
+UPDATE BLOCK_ldr
+SET BlockCodeMinutes = 10
+WHERE BlockCode= 'L1';
+COMMIT;
+
+UPDATE BLOCK_ldr
+SET BlockCodeMinutes = 20
+WHERE BlockCode= 'L2';
+COMMIT;
+
+UPDATE BLOCK_ldr
+SET BlockCodeMinutes = 30
+WHERE BlockCode= 'L3';
+COMMIT;
+
+UPDATE BLOCK_ldr
+SET BlockCodeMinutes = 40
+WHERE BlockCode= 'L4';
+COMMIT;
+
+--6
+INSERT INTO APPOINTMENT_ldr
+	VALUES ((SELECT MAX(APPTID)+1 FROM APPOINTMENT_ldr), '25-SEP-2021 2:00',15,'SP',NULL,1,'CN','NP');
+
+INSERT INTO APPTDETAIL_ldr
+	VALUES((SELECT MAX (APPTID) FROM APPTDETAIL_ldr),'PT','L4');
+--7
+
+INSERT INTO APPOINTMENT_ldr
+	VALUES ((SELECT MAX(APPTID)+1 FROM APPOINTMENT_ldr),'26-SEP-2021 1:00',101,'I',323,3,'NC','NP');
+	
+INSERT INTO APPTDETAIL_ldr
+	VALUES(113,'PT','L4');
+	
+COMMIT;
+	
+
+--8)
+INSERT INTO APPTSTATUS_ldr
+	VALUES ('RS','Rescheduled');
+
+--9)
+
+UPDATE APPOINTMENT_ldr
+	SET ApptStatusCode='RS'
+	Where PatientID =  108;
+	
+--10)
+COMMIT;
+
+
+--11)
+
+SELECT PatientID,PatientFName,PatientLName
+FROM PATIENT_ldr
+WHERE PatientPhone IS NULL;
+
+--12)
+
+SELECT COUNT (DISTINCT InsCoID) AS "Insurance Co Count"
+FROM INSURANCE_ldr;
+
+--13)
+SELECT ApptReasonCode AS "ReasonCode", COUNT(ApptID) AS "ApptCount"
+FROM APPTDETAIL_ldr
+GROUP BY ApptReasonCode;
+
+--14)
+
+SELECT BillingType, COUNT(ApptID) AS "COUNT"
+FROM APPOINTMENT_ldr
+GROUP BY BillingType;
+
+--15)
+SELECT * FROM APPTDETAIL_ldr
+ORDER BY ApptID,ApptReasonCode,BlockCode;
+COMMIT;
+--16)
+SELECT TO_CHAR(AVG(BlockcodeMinutes),'999.99')   ||  ' Minutes' AS "AVG APPT TIME"
+FROM BLOCK_ldr B, APPTDETAIL_ldr A
+WHERE B.BlockCode=A.BlockCode;
+COMMIT;
+
+--17)
+SELECT ApptID,TO_CHAR(ApptDateTime, 'MM/DD/YY') AS "DATE",R.PatientID,PatientLName,R.DrID,DRLName,ApptStatusDesc
+FROM APPOINTMENT_ldr R
+JOIN PATIENT_ldr C ON
+R.PatientID= C.PatientID
+JOIN DOCTOR_ldr A ON
+R.DrID=A.DRID
+JOIN APPTSTATUS_ldr P ON
+R.ApptStatusCode=P.ApptStatusCode
+WHERE ApptDateTime>= '25-SEP-2021';
+
+COMMIT;
+
+--18)
+SELECT A.ApptID,ApptDateTime AS "DateTime",SUM(BlockcodeMinutes) AS "Total Minutes"
+FROM APPTDETAIL_ldr A
+JOIN BLOCK_ldr B ON
+A.BlockCode=B.BlockCode
+Join APPOINTMENT_ldr D ON
+A.ApptID=D.APPTID
+GROUP BY A.ApptID,ApptDateTime;
+
+
+ 
+--19
+
+SELECT H.BlockCode,BlockCodeDesc AS "Description",COUNT(ApptID) AS "COUNT"
+FROM APPTDETAIL_ldr H
+JOIN BLOCK_ldr J ON
+H.BlockCode=J.BlockCode
+GROUP BY H.BlockCode,BlockCodeDesc;
+
+--20
+SELECT PatientID,PatientFName AS"First Name",PatientLName AS "Last Name",SUBSTR(PatientPhone,1,3)||'-'||SUBSTR(PatientPhone,4,3)||'-'||(SUBSTR(PatientPhone,7,4))AS"Phone"
+FROM PATIENT_ldr
+ORDER BY PatientID;
+COMMIT; 
+--21
+
+SELECT R.BillingType,BillingTypeDesc AS "DESCRIPTION",COUNT(ApptID) AS "Count"
+FROM APPOINTMENT_ldr R
+JOIN BILLING_ldr S ON
+R.BillingType=S.BillingType
+GROUP BY R.BillingType,  BillingTypeDesc;
+
+
+
+
+--22
+SELECT A.PatientID,PatientFName AS"First Name",PatientLName AS "Last Name",SUBSTR(PatientPhone,1,3)||'-'||SUBSTR(PatientPhone,4,3)||'-'||(SUBSTR(PatientPhone,7,4))AS"Phone"
+FROM PATIENT_ldr A 
+JOIN APPOINTMENT_ldr B ON
+A.PatientID=B.PatientID
+WHERE BillingType='SP';
+
+--23
+SELECT ApptID,TO_CHAR(ApptDateTime,'YYYY-MON-DD HH24:MI') AS "DATETIME",A.PatientID,PatientLName AS "Name",A.DRID,DRLName AS"DrName",BillingTypeDesc AS "Bill Type",ApptStatusDesc AS "Appt Status"
+FROM APPOINTMENT_ldr A
+JOIN PATIENT_ldr P ON
+A.PatientID=P.PatientID
+JOIN DOCTOR_ldr D ON
+A.DRID=D.DRID
+JOIN BILLING_ldr B ON
+A.BillingType=B.BillingType
+JOIN APPTSTATUS_ldr S ON
+A.ApptStatusCode=S.ApptStatusCode
+WHERE ApptDateTime<= '25-SEP-2021 23:59';
+
+
+
+--24
+SELECT P.DrID, (DrFName ||' '||DrLName) AS" Doctor Name",Count(ApptID) AS "Appt Count"
+FROM DOCTOR_ldr P
+JOIN APPOINTMENT_ldr A ON
+P.DrID=A.DrID
+GROUP BY P.DrID,DrFName,DrLName;
+
+--25
+SELECT P.PatientID AS "Patient ID",PatientFName AS"Patient First Name",PatientLName AS "Patient Last Name",Count(APPTID) AS "Appt Count"
+FROM PATIENT_ldr P
+JOIN APPOINTMENT_ldr A ON
+P.PatientID=A.PatientID
+GROUP BY P.PatientID,PatientFName,PatientLName;
+
+--26
+SELECT A.APPTID AS "Appt",TO_CHAR(ApptDateTime, 'YYYY-MON-DD HH24:MI') AS "DateTime",A.PatientID,(PatientFName ||' '||PatientLName) AS "Name",A.DrID,DRLName AS "DRName",COUNT(ApptReasonCode) AS "Code Count"
+FROM APPOINTMENT_ldr A
+JOIN PATIENT_ldr P ON
+A.PatientID=P.PATIENTID
+JOIN DOCTOR_ldr D ON
+A.DRID=D.DrID
+JOIN APPTDETAIL_ldr S ON
+A.Apptid=S.Apptid
+GROUP BY A.APPTID,ApptDateTime,A.PatientID,PatientFName,PatientLName,A.DrID,DRLName;
+
+
+--27
+SELECT A.ApptID,ApptDateTime AS "DateTime",MAX(BlockcodeMinutes) AS "Total Minutes"
+FROM APPTDETAIL_ldr A,BLOCK_ldr B,APPOINTMENT_ldr D
+WHERE A.BlockCode=B.BlockCode AND
+A.ApptID=D.APPTID
+GROUP BY A.ApptID,ApptDateTime
+HAVING MAX(BlockCodeMinutes)>=40;
+
+--28
+SELECT P.DrID, (DrFName ||' '||DrLName) AS "Name",Count(ApptID) AS" Appt Count"
+FROM DOCTOR_ldr P,APPOINTMENT_ldr D
+WHERE P.DRID=D.DrID
+GROUP BY P.DrID,DrFName,DrLName
+HAVING COUNT(ApptID)<=2;
+
+--29
+SELECT A.ApptID, ApptDateTime,D.PatientID,PatientLName,D.DrID,DrLName
+FROM APPTDETAIL_ldr A
+JOIN APPOINTMENT_ldr D ON
+A.APPTID=D.APPTID
+JOIN PATIENT_ldr C ON
+D.PATIENTID=C.PATIENTID
+JOIN DOCTOR_ldr G ON
+D.DRID=G.DRID
+JOIN BLOCK_ldr B ON
+A.BlockCode=B.BlockCode
+WHERE BlockcodeMinutes>=30;
+
+--30
+SELECT A.APPTID,ApptDateTime,PatientLName,DrLName,SUM(BlockcodeMinutes) AS  "Total Minutes"
+FROM APPOINTMENT_ldr A
+JOIN PATIENT_ldr P ON
+A.PatientID=P.PATIENTID
+JOIN DOCTOR_ldr D ON
+A.DrID=D.DrID
+JOIN APPTDETAIL_ldr T ON
+A.ApptID=T.APPTID
+JOIN  BLOCK_ldr B ON
+B.BlockCode=T.BlockCode
+GROUP BY A.APPTID,ApptDateTime,PatientLName,DrLName
+HAVING SUM(BLOCKCODEMINUTES)>20.91;
+
+
+
+
+--31
+SELECT A.APPTID,ApptDateTime,PatientLName,BillingTypeDesc,InsCoName,COUNT(ApptReasonCode) AS "Reason Count"
+FROM APPOINTMENT_ldr A 
+JOIN PATIENT_ldr P ON
+A.PatientID=P.PatientID
+JOIN BILLING_ldr B ON
+A.BillingType=B.BillingType
+JOIN INSURANCE_ldr I ON 
+A.InsCoID= I.InsCoID
+JOIN APPTDETAIL_ldr T ON
+T.APPTID=A.APPTID
+GROUP BY A.APPTID,ApptDateTime,PatientLName,BillingTypeDesc,InsCoName
+HAVING COUNT( ApptReasonCode)>=2;	
+
+--32
+
+SELECT A.ApptReasonCode,ApptReasonDesc,A.BlockCode,B.BlockcodeMinutes
+FROM APPTDETAIL_ldr A,APPTREASON_ldr R, BLOCK_ldr B
+WHERE A.ApptReasonCode=R.ApptReasonCode AND
+A.BlockCode=B.BlockCode AND (A.ApptID, BlockcodeMinutes) IN (SELECT APPTID, MAX(BlockcodeMinutes) AS "Minutes" FROM 
+APPTDETAIL_ldr GROUP BY APPTID);
